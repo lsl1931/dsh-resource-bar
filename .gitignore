@@ -1,0 +1,14 @@
+# Test-only dependencies (never published: the manifest's `files` whitelist
+# ships lib/, cordis.patch.yml, README.md and LICENSE only).
+node_modules/
+
+# NOTE: lib/ is deliberately COMMITTED, not ignored.
+# The plugin is installed from a git/tarball URL, and the community-market rules
+# forbid install lifecycle scripts (preinstall/install/postinstall/prepare) in
+# the published manifest — so a consumer cannot be asked to build it. Shipping
+# the built output is what makes `dsh plugin add <url>` work with no toolchain.
+# Run `node build.mjs` after touching src/ and commit the result.
+
+# Local scratch
+*.log
+.DS_Store

@@ -1,0 +1,6 @@
+# dsh-resource-bar bundle: mount the Node-side host resource sampler.
+# The loader passes only the `config` sub-object to the plugin, so plugin
+# settings (if any) belong under a nested `config:` key beside `name:`.
+- insert:
+    - id: dsh-resource-bar
+      name: 'dsh-resource-bar'

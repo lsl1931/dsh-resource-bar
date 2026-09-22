@@ -1,0 +1,63 @@
+{
+  "name": "dsh-resource-bar",
+  "version": "0.1.0",
+  "description": "DSH web plugin: a CPU/memory usage pill pinned above the sidebar Settings row, click to expand per-core, load, swap and top-process detail.",
+  "type": "module",
+  "main": "lib/index.js",
+  "files": [
+    "lib",
+    "cordis.patch.yml",
+    "README.md",
+    "LICENSE"
+  ],
+  "exports": {
+    ".": {
+      "default": "./lib/index.js"
+    },
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web"
+    }
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node run-selftests.mjs",
+    "test:e2e": "bash scripts/e2e-mount.sh"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "resource",
+    "cpu",
+    "memory",
+    "sidebar",
+    "usage-bar"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lsl1931/dsh-resource-bar.git"
+  },
+  "homepage": "https://github.com/lsl1931/dsh-resource-bar#readme",
+  "bugs": {
+    "url": "https://github.com/lsl1931/dsh-resource-bar/issues"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.2"
+  },
+  "devDependencies": {
+    "happy-dom": "^15.11.7",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  }
+}
