@@ -1,7 +1,7 @@
 {
   "name": "dsh-resource-bar",
   "version": "0.1.0",
-  "description": "DSH web plugin: a CPU/memory usage pill pinned above the sidebar Settings row, click to expand per-core, load, swap and top-process detail.",
+  "description": "DSH Web 插件：在左侧边栏底部（设置按钮上方）常驻一枚 CPU / 内存占用药丸，点击展开逐核占用、时间片构成、内存细分、交换分区、系统负载与进程 Top5 详情。",
   "type": "module",
   "main": "lib/index.js",
   "files": [
