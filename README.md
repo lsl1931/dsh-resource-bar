@@ -113,6 +113,29 @@ npm run test:e2e         # 真实 dsh web 挂载验证（临时 DSH_HOME，不�
 
 端到端挂载测试**不进 CI**：它要真实启动 `dsh web`、依赖可用的 dsh 安装与空闲端口，属于本机发布前的手动门禁（`npm run test:e2e`）。
 
+## 发布到 GitHub
+
+仓库尚需创建（本机无任何 GitHub 凭据）。本地仓库已就绪：分支 `main`、两处提交、`origin` 指向 `https://github.com/lsl1931/dsh-resource-bar.git`（不含凭据）。
+
+两种方式二选一：
+
+**A. 自己推（不需要交出凭据）** —— 在 GitHub 建空公开仓库 `dsh-resource-bar`（**不要**勾 README/gitignore），然后：
+
+```bash
+cd ~/dsh-resource-bar && git push -u origin main
+```
+
+**B. 用脚本一键建仓并推送** —— 需要 `repo` scope 的 PAT：
+
+```bash
+# token 只进文件，不进命令行历史
+read -rsp "PAT: " T && printf '%s' "$T" > ~/.gh-pat && chmod 600 ~/.gh-pat && unset T
+bash scripts/publish.sh     # 建仓（已存在则跳过）+ 推送 + 校验远程 ref
+rm ~/.gh-pat                # 完成后自行删除
+```
+
+该脚本把 token 经**临时 credential helper** 传给 git，且 helper 在调用时从文件读取，因此 token 既不会写进 `.git/config`、日志，也不会出现在任何进程的 argv 里（可用 `ps` 验证）。
+
 ## 已知边界
 
 - **仅 Linux**：数据源是 procfs。其他平台下药丸仍会渲染，但显示「无读数」，不报错。
