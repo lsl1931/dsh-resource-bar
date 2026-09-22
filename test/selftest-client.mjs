@@ -211,6 +211,91 @@ await check("the expanded panel shows cores, breakdown, memory and processes", a
   assert.match(text, /dsh web/, "top process by memory listed");
   assert.match(text, /Test CPU 3000/, "host model shown");
   assert.match(text, /1天1小时/, "uptime humanised (90061s)");
+  // The composition is a segmented bar plus a legend, not a column of rows.
+  assert.ok(m.container.querySelector(".dsh-rb-seg"), "composition bar rendered");
+  assert.ok(m.container.querySelectorAll(".dsh-rb-legend__i").length >= 3, "legend names the slices");
+  assert.ok(m.container.querySelectorAll(".dsh-rb-core").length === 4, "one chip per core");
+  // Idle is the complement of busy: it belongs in the bar and legend, and must
+  // not also be a standalone row (that is what made the panel unreadable).
+  const rowLabels = [...m.container.querySelectorAll(".dsh-rb-row__lbl")].map((e) => e.textContent);
+  assert.ok(!rowLabels.includes("空闲"), "空闲 is not repeated as a standalone row");
+  await unmount(m);
+});
+
+await check("the panel fits the space above the pill instead of being clipped", async () => {
+  // Regression guard: the panel was clamped to `top = max(8, ...)` with a
+  // hardcoded max-height, so on a short viewport its content was cut off.
+  const m = await mountPlugin();
+  await act(async () => {
+    m.container.querySelector(".dsh-rb").dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  });
+  await act(async () => {
+    await settle(4);
+  });
+  const host = m.container.querySelector(".dsh-rb-panelHost");
+  assert.ok(host, "panel host present");
+  const maxH = parseFloat(host.style.maxHeight);
+  assert.ok(Number.isFinite(maxH) && maxH > 0, "an explicit max-height is set from measured space, got " + host.style.maxHeight);
+  // The panel is anchored by exactly ONE edge, and that edge is the one with
+  // room. Anchoring by a measured height instead (the old bug) made the panel
+  // grow the wrong way on the first paint, when its content is not measured yet.
+  const hasTop = host.style.top !== "";
+  const hasBottom = host.style.bottom !== "";
+  assert.ok(hasTop !== hasBottom, "exactly one vertical edge is anchored (top=" + host.style.top + ", bottom=" + host.style.bottom + ")");
+  const anchored = parseFloat(hasTop ? host.style.top : host.style.bottom);
+  assert.ok(Number.isFinite(anchored) && anchored >= 0, "the anchor is inside the viewport, got " + anchored);
+  // Whatever the cap is, it must never exceed the window.
+  assert.ok(maxH <= 900, "cap stays within the viewport, got " + maxH);
+  await unmount(m);
+});
+
+await check("the panel opens upward when the pill sits low in the viewport", async () => {
+  // The sidebar footer is at the bottom of the screen, so this is the normal
+  // case, and it is the case the old code clipped.
+  const m = await mountPlugin();
+  const rootEl = m.container.querySelector(".dsh-rb__root");
+  const pill = m.container.querySelector(".dsh-rb");
+  // Pill near the bottom of a 900px window: ~60px below, ~800px above.
+  const rect = { left: 12, right: 272, top: 800, bottom: 836, width: 260, height: 36 };
+  Object.defineProperty(rootEl, "getBoundingClientRect", { value: () => rect, configurable: true });
+  Object.defineProperty(pill, "getBoundingClientRect", { value: () => rect, configurable: true });
+  await act(async () => {
+    pill.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  });
+  await act(async () => {
+    await settle(4);
+  });
+  const host = m.container.querySelector(".dsh-rb-panelHost");
+  assert.strictEqual(host.style.bottom, "108px", "anchored to the bottom edge (900 - 800 + 8), got " + host.style.bottom);
+  assert.strictEqual(host.style.top, "", "and not also to the top");
+  // The cap must leave room for the panel rather than clipping it.
+  assert.ok(parseFloat(host.style.maxHeight) > 300, "cap uses the space above the pill, got " + host.style.maxHeight);
+  await unmount(m);
+});
+
+await check("the panel's width tracks the pill so their edges line up", async () => {
+  // Regression guard: the width used to be max(pill, 300), so a 320px sidebar
+  // produced a 300px panel that did not align with the pill above it.
+  const m = await mountPlugin();
+  const pill = m.container.querySelector(".dsh-rb");
+  // happy-dom reports 0 for layout, so stub the measurement the component reads.
+  // 260px: narrower than PANEL_MIN_W (288) and typical of a real expanded
+  // sidebar. The old code floored the width at 288 here, which is exactly the
+  // overhang this guards against — a 320px pill would not distinguish them.
+  const rect = { left: 12, right: 272, top: 700, bottom: 736, width: 260, height: 36 };
+  Object.defineProperty(pill, "getBoundingClientRect", { value: () => rect, configurable: true });
+  const rootEl = m.container.querySelector(".dsh-rb__root");
+  Object.defineProperty(rootEl, "getBoundingClientRect", { value: () => rect, configurable: true });
+
+  await act(async () => {
+    pill.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  });
+  await act(async () => {
+    await settle(4);
+  });
+  const host = m.container.querySelector(".dsh-rb-panelHost");
+  assert.strictEqual(host.style.width, "260px", "panel width follows the pill, got " + host.style.width);
+  assert.strictEqual(host.style.left, "12px", "panel left edge aligns with the pill, got " + host.style.left);
   await unmount(m);
 });
 
@@ -298,6 +383,18 @@ await check("wide mode renders gauges with the documented tone classes", async (
   assert.match(fills[1].className, /--t0/);
   assert.match(fills[0].style.width, /37\.5%/);
   await unmount(m);
+});
+
+await check("the neutral tone is the accent, not the success colour", async () => {
+  // Regression guard: t0 used --dsw-alias-state-success-primary, so a 63%-full
+  // memory bar rendered green and read as "all good" when it was the opposite.
+  const { CSS } = loadClientBundle({}).mod;
+  const t0 = /\.dsh-rb-bar__fill--t0\{background:var\((--dsw-[a-z0-9-]+)\)\}/.exec(CSS);
+  assert.ok(t0, "the neutral fill rule exists");
+  assert.strictEqual(t0[1], "--dsw-alias-link", "neutral = accent, got " + t0[1]);
+  assert.ok(!/--t0\{background:var\(--dsw-alias-state-success/.test(CSS), "neutral must not be the success colour");
+  const g0 = /\.dsh-rb__gaugeFill--t0\{background:var\((--dsw-[a-z0-9-]+)\)\}/.exec(CSS);
+  assert.strictEqual(g0[1], "--dsw-alias-link", "the pill gauge agrees");
 });
 
 await check("a hot metric is coloured as a warning, not silently green", async () => {
