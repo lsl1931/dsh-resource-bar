@@ -47,15 +47,24 @@
 
 ## 安装
 
-作为独立插件包被 profile 引用，**不反向侵入 DSH**：
+作为独立插件包被 profile 引用，**不反向侵入 DSH**。从公开仓库安装（推荐，锁得住版本）：
 
 ```bash
-# 在本仓库目录开发时，用 link: 让改动即时生效
-cd ~/.dsh/profiles/web
-pnpm add "link:/path/to/dsh-resource-bar"
+dsh plugin --profile web add https://codeload.github.com/lsl1931/dsh-resource-bar/tar.gz/refs/heads/main
 ```
 
 随后在 `~/.dsh/profiles/web/package.json` 的 `dsh.profile.bundles` 中列出 `dsh-resource-bar`，重启 `dsh web` 即可。
+
+> `github:lsl1931/dsh-resource-bar` 这种简写在本机不可用：pnpm 会把它解析成
+> `git+ssh://`，没有 SSH 密钥时会以 `Host key verification failed` 失败。
+> 上面的 codeload HTTPS URL 可以完全绕开 git。
+
+在本仓库目录开发时，用 `link:` 让改动即时生效：
+
+```bash
+cd ~/.dsh/profiles/web
+pnpm add "link:/path/to/dsh-resource-bar"
+```
 
 > 开发提示：用 `link:` 而非 `file:`。`file:` 会做快照拷贝，改完源码后 host 端可能仍加载旧版本。
 
