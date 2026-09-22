@@ -1,0 +1,85 @@
+name: CI
+
+# Runs the full in-process suite on every push and PR. The end-to-end mount test
+# (npm run test:e2e) is NOT run in CI on purpose: it boots a real `dsh web`,
+# needs a working dsh installation and a free port, and is therefore environment
+# dependent. It is documented in the README as the local pre-release gate.
+#
+# The install-lifecycle-script ban is also why this workflow installs with
+# `npm ci --ignore-scripts`: the manifest must never depend on a build hook
+# running inside a consumer's tree.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # Test-only dependencies (react, react-dom, happy-dom). They are not part
+      # of the published surface: the manifest's `files` whitelist excludes them.
+      - name: Install test dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Build (regenerates lib/ from src/)
+        run: node build.mjs
+
+      - name: Fail if the committed lib/ was stale
+        run: git diff --exit-code -- lib/
+
+      - name: Full selftest suite
+        run: node run-selftests.mjs
+
+  manifest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # The ecosystem's hard constraints, re-checked from the packed manifest so
+      # the published surface (not just the repo manifest) is verified:
+      #   - no `cordis` entry in any dependency field, even optional
+      #   - no preinstall/install/postinstall/prepare script
+      - name: Check the packed manifest
+        run: |
+          node -e '
+          const { execFileSync } = require("node:child_process");
+          const { mkdtempSync, readFileSync, rmSync } = require("node:fs");
+          const { tmpdir } = require("node:os");
+          const { join } = require("node:path");
+          const dir = mkdtempSync(join(tmpdir(), "pack-"));
+          try {
+            execFileSync("npm", ["pack", "--pack-destination", dir], { stdio: "pipe" });
+            const tgz = require("node:fs").readdirSync(dir).find((f) => f.endsWith(".tgz"));
+            execFileSync("tar", ["-xzf", tgz, "package/package.json"], { cwd: dir, stdio: "pipe" });
+            const p = JSON.parse(readFileSync(join(dir, "package/package.json"), "utf8"));
+            const fail = (m) => { console.error("FAIL: " + m); process.exit(1); };
+            for (const field of ["dependencies", "peerDependencies", "optionalDependencies"]) {
+              if (p[field] && Object.keys(p[field]).includes("cordis")) fail(field + " declares cordis");
+            }
+            for (const s of ["preinstall", "install", "postinstall", "prepare"]) {
+              if (p.scripts && p.scripts[s]) fail("packed manifest declares scripts." + s);
+            }
+            const files = execFileSync("tar", ["-tzf", tgz], { cwd: dir, encoding: "utf8" }).split("\n");
+            for (const required of ["package/lib/index.js", "package/lib/client.js", "package/cordis.patch.yml"]) {
+              if (!files.includes(required)) fail("tarball is missing " + required);
+            }
+            if (files.some((f) => f.startsWith("package/test/") || f.startsWith("package/node_modules/"))) {
+              fail("tarball ships test-only files");
+            }
+            console.log("packed manifest OK (" + files.filter(Boolean).length + " files)");
+          } finally {
+            rmSync(dir, { recursive: true, force: true });
+          }
+          '

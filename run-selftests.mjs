@@ -31,6 +31,7 @@ const ORDER = [
   "selftest-client.mjs",
   "selftest-live.mjs",
   "selftest-integration.mjs",
+  "selftest-packaging.mjs",
   "selftest-perf.mjs",
 ];
 

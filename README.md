@@ -87,6 +87,7 @@ npm run test:e2e         # 真实 dsh web 挂载验证（临时 DSH_HOME，不�
 | `selftest-client.mjs` | 客户端渲染：真实 React + happy-dom 驱动真实 bundle，断言交互与可访问性 |
 | `selftest-contracts.mjs` | 官方条例：清单约束、patch 形状、样式归属、主题 token 白名单、无硬编码颜色 |
 | `selftest-live.mjs` | 真实采样：对活着的 `/proc` 连续采样并校验数值区间 |
+| `selftest-packaging.mjs` | 发布面：`npm pack` 后 tarball 恰为 6 个文件、无测试/源码泄漏、打包清单无生命周期脚本 |
 | `selftest-perf.mjs` | 性能边界：单次采样与快照序列化耗时上限 |
 
 测试只依赖 `react` / `react-dom` / `happy-dom`（devDependencies，**不进发布面**，`files` 白名单已排除）。
@@ -99,9 +100,18 @@ npm run test:e2e         # 真实 dsh web 挂载验证（临时 DSH_HOME，不�
 2. `dsh plugin --profile web add` 把本插件装进 scratch profile；
 3. 在空闲端口真实启动 `dsh web`，等待就绪并确认启动日志无加载器报错；
 4. 经鉴权 HTTP 跑 38 项契约检查：信任栅栏（未鉴权 401）、方法校验（POST 405）、实时 CPU/内存载荷、逐核读数、惰性进程采样器及其 18 秒自动停止；
-5. 确认客户端 bundle 确实被打进 boot combo 并在 `/plugins` 正常下发。
+5. 确认客户端 bundle 确实被打进 boot combo 并在 `/plugins` 正常下发；
+6. 解析真实 `__DSH_BOOT__` 载荷，确认本插件的行存在、未被 rejected、且其指向的资源可 200 下载（11 项检查）。
+
+合计 57 项端到端检查。
 
 脚本按**端口持有者**识别进程（本平台的 dsh 进程 `comm` 是 `MainThread`，用 `pgrep node` 找不到它 —— 这个坑在开发时真的留下过孤儿进程）。清理只杀自己那个端口的进程，不会波及你 `:3080` 上的服务。
+
+## CI
+
+`.github/workflows/ci.yml` 在每次 push / PR 上跑：全量自检 + **校验提交的 `lib/` 不是陈旧的**（`git diff --exit-code -- lib/`）+ 打包清单门（`npm pack` 后确认无 `cordis` 依赖、无生命周期脚本、tarball 内容正确）。
+
+端到端挂载测试**不进 CI**：它要真实启动 `dsh web`、依赖可用的 dsh 安装与空闲端口，属于本机发布前的手动门禁（`npm run test:e2e`）。
 
 ## 已知边界
 

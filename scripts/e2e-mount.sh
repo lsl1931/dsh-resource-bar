@@ -137,6 +137,11 @@ node "$REPO/scripts/e2e-http.mjs" "$PORT" "$TOKEN"
 RC=$?
 if [[ $RC -eq 0 ]]; then ok "authenticated HTTP contract checks passed"; else bad "HTTP contract checks failed"; fi
 
+echo "=== 6. the real boot graph carries a loadable row for this plugin ==="
+node "$REPO/scripts/e2e-boot-graph.mjs" "$PORT" "$TOKEN"
+RC2=$?
+if [[ $RC2 -eq 0 ]]; then ok "boot-graph row checks passed"; else bad "boot-graph row checks failed"; fi
+
 echo
 echo "=== summary ==="
 echo "  $PASS passed, $FAIL failed"
